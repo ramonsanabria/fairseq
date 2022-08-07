@@ -275,13 +275,10 @@ class ConformerEncoderLayer(torch.nn.Module):
 
         residual = x
         x = self.ffn2(x)
-
-        layer_result = x
-
         x = x * 0.5 + residual
 
         x = self.final_layer_norm(x)
-        return x, (attn, layer_result)
+        return x, attn
 
 
 class ConformerWav2Vec2EncoderLayer(ConformerEncoderLayer):

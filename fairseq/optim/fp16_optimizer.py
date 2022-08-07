@@ -7,9 +7,8 @@ from collections import defaultdict
 from itertools import chain
 
 import torch
-from omegaconf import DictConfig
-
 from fairseq import optim
+from omegaconf import DictConfig
 
 from .dynamic_loss_scaler import DynamicLossScaler
 
@@ -266,7 +265,7 @@ class FP16Optimizer(_FP16OptimizerMixin, optim.FairseqOptimizer):
                 / cfg.common.model_parallel_size
             )
             scale_window = int(
-                2**14 / data_parallel_size / cfg.optimization.update_freq[0]
+                2 ** 14 / data_parallel_size / cfg.optimization.update_freq[0]
             )
         else:
             scale_window = cfg.common.fp16_scale_window
@@ -500,7 +499,7 @@ class MemoryEfficientFP16Optimizer(
                 / cfg.common.model_parallel_size
             )
             scale_window = int(
-                2**14 / data_parallel_size / cfg.optimization.update_freq[0]
+                2 ** 14 / data_parallel_size / cfg.optimization.update_freq[0]
             )
         else:
             scale_window = cfg.common.fp16_scale_window

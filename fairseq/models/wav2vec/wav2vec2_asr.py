@@ -5,7 +5,6 @@
 
 import contextlib
 import copy
-import logging
 import math
 import re
 from argparse import Namespace
@@ -31,8 +30,6 @@ from fairseq.models import (
 from fairseq.models.wav2vec.wav2vec2 import MASKING_DISTRIBUTION_CHOICES
 from fairseq.modules import LayerNorm, PositionalEmbedding, TransformerDecoderLayer
 from fairseq.tasks import FairseqTask
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -110,17 +107,6 @@ class Wav2Vec2AsrConfig(FairseqDataclass):
         default=1,
         metadata={"help": "min space between spans (if no overlap is enabled)"},
     )
-    require_same_masks: bool = field(
-        default=True,
-        metadata={
-            "help": "whether to number of masked timesteps must be the same across all "
-            "examples in a batch"
-        },
-    )
-    mask_dropout: float = field(
-        default=0.0,
-        metadata={"help": "percent of masks to unmask for each sample"},
-    )
 
     # channel masking
     mask_channel_length: int = field(
@@ -161,6 +147,9 @@ class Wav2Vec2AsrConfig(FairseqDataclass):
     data: str = II("task.data")
     # this holds the loaded wav2vec args
     w2v_args: Any = None
+    checkpoint_activations: bool = field(
+        default=False, metadata={"help": "checkpoint_activations"}
+    )
     offload_activations: bool = field(
         default=False, metadata={"help": "offload_activations"}
     )
@@ -355,8 +344,6 @@ class Wav2VecEncoder(FairseqEncoder):
             "attention_dropout": cfg.attention_dropout,
             "mask_length": cfg.mask_length,
             "mask_prob": cfg.mask_prob,
-            "require_same_masks": getattr(cfg, "require_same_masks", True),
-            "pct_holes": getattr(cfg, "mask_dropout", 0),
             "mask_selection": cfg.mask_selection,
             "mask_other": cfg.mask_other,
             "no_mask_overlap": cfg.no_mask_overlap,
@@ -381,19 +368,13 @@ class Wav2VecEncoder(FairseqEncoder):
             w2v_args.criterion = None
             w2v_args.lr_scheduler = None
             cfg.w2v_args = w2v_args
-
-            logger.info(w2v_args)
-
         else:
             state = None
             w2v_args = cfg.w2v_args
             if isinstance(w2v_args, Namespace):
                 cfg.w2v_args = w2v_args = convert_namespace_to_omegaconf(w2v_args)
 
-        model_normalized = w2v_args.task.get(
-            "normalize", w2v_args.model.get("normalize", False)
-        )
-        assert cfg.normalize == model_normalized, (
+        assert cfg.normalize == w2v_args.task.normalize, (
             "Fine-tuning works best when data normalization is the same. "
             "Please check that --normalize is set or unset for both pre-training and here"
         )
@@ -404,12 +385,12 @@ class Wav2VecEncoder(FairseqEncoder):
 
         w2v_args.task.data = cfg.data
         task = tasks.setup_task(w2v_args.task)
-        model = task.build_model(w2v_args.model, from_checkpoint=True)
-
-        model.remove_pretraining_modules()
+        model = task.build_model(w2v_args.model)
 
         if state is not None and not cfg.no_pretrained_weights:
             self.load_model_weights(state, model, cfg)
+
+        model.remove_pretraining_modules()
 
         super().__init__(task.source_dictionary)
 
@@ -461,8 +442,6 @@ class Wav2VecEncoder(FairseqEncoder):
 
             model.load_state_dict(new_big_dict, strict=False)
         else:
-            if "_ema" in state["model"]:
-                del state["model"]["_ema"]
             model.load_state_dict(state["model"], strict=True)
 
     def set_num_updates(self, num_updates):
@@ -602,7 +581,7 @@ class TransformerDecoder(FairseqIncrementalDecoder):
             self.embed_out = nn.Parameter(
                 torch.Tensor(len(dictionary), self.output_embed_dim)
             )
-            nn.init.normal_(self.embed_out, mean=0, std=self.output_embed_dim**-0.5)
+            nn.init.normal_(self.embed_out, mean=0, std=self.output_embed_dim ** -0.5)
 
         if transformer_cfg.decoder_normalize_before:
             self.layer_norm = LayerNorm(embed_dim)
@@ -735,7 +714,7 @@ class TransformerDecoder(FairseqIncrementalDecoder):
 
 def Embedding(num_embeddings, embedding_dim, padding_idx):
     m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx)
-    nn.init.normal_(m.weight, mean=0, std=embedding_dim**-0.5)
+    nn.init.normal_(m.weight, mean=0, std=embedding_dim ** -0.5)
     nn.init.constant_(m.weight[padding_idx], 0)
     return m
 

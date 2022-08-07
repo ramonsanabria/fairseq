@@ -365,8 +365,8 @@ class TranslationTask(FairseqTask):
             constraints=constraints,
         )
 
-    def build_model(self, cfg, from_checkpoint=False):
-        model = super().build_model(cfg, from_checkpoint)
+    def build_model(self, cfg):
+        model = super().build_model(cfg)
         if self.cfg.eval_bleu:
             detok_args = json.loads(self.cfg.eval_bleu_detok_args)
             self.tokenizer = encoders.build_tokenizer(
