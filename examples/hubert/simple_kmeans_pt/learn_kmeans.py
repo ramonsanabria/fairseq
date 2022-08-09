@@ -8,9 +8,11 @@ import os
 import sys
 
 import numpy as np
+
 from sklearn.cluster import MiniBatchKMeans
 
 import joblib
+sys.exit()
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
