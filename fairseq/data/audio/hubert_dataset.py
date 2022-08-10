@@ -59,6 +59,10 @@ def load_label(label_path, inds, tot):
 
 def load_label_offset(label_path, inds, tot):
     with open(label_path) as f:
+        print(label_path)
+        print(label_path)
+        print(label_path)
+        print(label_path)
         code_lengths = [len(line.encode("utf-8")) for line in f]
         assert (
             len(code_lengths) == tot

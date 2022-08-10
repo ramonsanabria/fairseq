@@ -13,6 +13,7 @@ import torch.nn as nn
 from omegaconf import II
 
 from fairseq import utils
+from fairseq import checkpoint_utils, tasks, utils
 from fairseq.data.data_utils import compute_mask_indices
 from fairseq.data.dictionary import Dictionary
 from fairseq.dataclass import ChoiceEnum, FairseqDataclass
@@ -315,6 +316,7 @@ class HubertModel(BaseFairseqModel):
         """Build a new model instance."""
 
         model = HubertModel(cfg, task.cfg, task.dictionaries)
+
         return model
 
     def apply_mask(self, x, padding_mask, target_list):
